@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Holiday Train</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #000000;
+            color: #bebebe;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        .section {
+            border: 1px solid #696969;
+            background-color: #000000;
+            padding: 20px;
+            margin: 5px 0;  
+            border-radius: 8px;
+        }
+        .label {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        ble-connection-panel {
+            display: block;
+            margin-bottom: 20px;
+        }
+        animation-selector {
+            display: block;
+        }
+        layer-controls {
+            display: block;
+        }
+        preset-controls {
+            display: block;
+        }
+        .status {
+            margin-top: 5px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        .maingrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr ;
+            grid-template-rows: .6fr .5fr .5fr .6fr .7fr .3fr .3fr;
+            font-size: .9em;
+        }
+        .section.mainControl {
+            padding: 5px;
+            text-align: center;
+            grid-column-start: 1;
+            grid-column-end: 2;
+            grid-row-start: 1;
+            grid-row-end: 2;  
+        }
+        .section.log { 
+            padding: 5px;
+            grid-column-start: 2;
+            grid-column-end: 3;
+            grid-row-start: 1;
+            grid-row-end: 1; 
+        }
+
+    </style>
+</head>
+<!-- *********************************************************************************** -->
+<body>
+   
+    <h1>Holiday Train</h1>
+
+    <div class="maingrid">
+
+        <!-- Main Panel Component -->
+        <div class="section mainControl">
+            <ble-connection-panel device-name="Holiday Train"></ble-connection-panel>
+            <div class="label">System Power: 
+                <control-button 
+                    label="On" 
+                    data-my-number="11">
+                </control-button>
+                <control-button 
+                    label="Off" 
+                    data-my-number="10">
+                </control-button>
+                <!--<control-button 
+                    label="Sync State" 
+                    data-my-number="92">
+                </control-button> -->
+            </div>
+            <div class="label">Features: 
+                <control-button 
+                    label="All On" 
+                    data-my-number="13">
+                </control-button>
+                <control-button 
+                    label="All Off" 
+                    data-my-number="12">
+                </control-button>
+            </div>
+            <div>
+                <control-checkbox 
+                    label="Track" 
+                    data-my-number="40"
+                    unchecked>
+                </control-checkbox>
+            </div>
+            <div>            
+            
+                <control-checkbox 
+                    label="Steamer" 
+                    data-my-number="50"
+                    unchecked>
+                </control-checkbox>
+            </div>
+            <div>            
+                <control-checkbox 
+                    label="Stock Car" 
+                    data-my-number="60"
+                    unchecked>
+                </control-checkbox>
+            </div>
+            <div>            
+                <control-checkbox 
+                    label="Light Car" 
+                    data-my-number="70"
+                    unchecked>
+                </control-checkbox>
+            </div>
+            <div>            
+                <control-checkbox 
+                    label="Caboose" 
+                    data-my-number="90"
+                    unchecked>
+                </control-checkbox>
+            </div>
+        </div> 
+
+  
+        <!-- Event Log -->  
+        <div class="status section log" >
+            <div><strong>Last BLE Message Sent:</strong> <span id="lastMessage">None</span></div>
+            <div><strong>Component Events:</strong></div>
+            <div id="eventLog" style="max-height: 225px; overflow-y: auto;"></div>
+        </div>
+
+    </div>
+
+    <!-- ***************************************************************************************************************** -->
+
+    <script>
+
+        //BLE MANAGEMENT ********************************************************************************* 
+
+        // Define BLE Specs and Global Variables
+        var deviceName = 'Holiday Train';
+        var bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
+        var ButtonCharacteristic = '19b10001-e8f2-537e-4f6c-d104768a1214';
+        var CheckboxCharacteristic = '19b10002-e8f2-537e-4f6c-d104768a1214';
+        //var NumberCharacteristic = '19b10003-e8f2-537e-4f6c-d104768a1214';
+        var StringCharacteristic = '19b10004-e8f2-537e-4f6c-d104768a1214';
+
+        var bleDevice;
+        var bleServer;
+        var bleServiceFound;
+        var buttonCharacteristicFound;
+        var checkboxCharacteristicFound;
+        //var numberCharacteristicFound;
+        var stringCharacteristicFound;
+
+        let deviceConnected = false;
+        let lastValueSent = '';
+        
+        // BLE Connect/Disconnect Functions *************************************
+
+        // Check if BLE is available
+        function isWebBluetoothEnabled() {
+            if (!navigator.bluetooth) {
+                console.log("Web Bluetooth API is not available in this browser!");
+                updateBLEStatus("Web Bluetooth API is not available in this browser!", '#d13a30');
+                return false;
+            }
+            console.log('Web Bluetooth API supported in this browser.');
+            return true;
+        }
+
+        // Connect to BLE Device
+        function connectToDevice() {
+            if (!isWebBluetoothEnabled()) {
+                return;
+            }
+
+            console.log('Initializing Bluetooth...');
+            logEvent('Initializing Bluetooth...');
+            updateBLEStatus('Connecting...', '#ffa500');
+            
+            navigator.bluetooth.requestDevice({
+                filters: [{name: deviceName}],
+                optionalServices: [bleService]
+            })
+            .then(device => {
+                bleDevice = device;
+                console.log('Device Selected:', device.name);
+                logEvent(`Device Selected: ${device.name}`);
+                updateBLEStatus(`Connected to ${device.name}`, '#24af37');
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                return device.gatt.connect();
+            })
+            .then(gattServer =>{
+                bleServer = gattServer;
+                console.log("Connected to GATT Server");
+                logEvent("Connected to GATT Server");
+                return bleServer.getPrimaryService(bleService);
+            })
+            .then(service => {
+                bleServiceFound = service;
+                console.log("Service discovered:", service.uuid);
+                logEvent("Service discovered");
+
+                // Get characteristics
+                return Promise.all([
+                    service.getCharacteristic(ButtonCharacteristic),
+                    service.getCharacteristic(CheckboxCharacteristic), 
+                    //service.getCharacteristic(NumberCharacteristic),
+                    service.getCharacteristic(StringCharacteristic)
+
+                ]);
+            })
+            .then(characteristics => {
+                [buttonCharacteristicFound, checkboxCharacteristicFound, stringCharacteristicFound] = characteristics; // numberCharacteristicFound
+                
+                // Set up notifications for all characteristics
+                buttonCharacteristicFound.addEventListener('characteristicvaluechanged', handleButtonCharacteristicChange);
+                buttonCharacteristicFound.startNotifications();
+                
+                checkboxCharacteristicFound.addEventListener('characteristicvaluechanged', handleCheckboxCharacteristicChange);
+                checkboxCharacteristicFound.startNotifications();
+                
+                //numberCharacteristicFound.addEventListener('characteristicvaluechanged', handleNumberCharacteristicChange);
+                //numberCharacteristicFound.startNotifications();
+                
+                stringCharacteristicFound.addEventListener('characteristicvaluechanged', handleStringCharacteristicChange);
+                stringCharacteristicFound.startNotifications();
+                
+                deviceConnected = true;
+                logEvent("✅ BLE Connected with all characteristics ready!");
+                updateBLEStatus(`Connected and ready!`, '#24af37');
+                
+                // Update BLE state and sync initial state
+                window.BLEState.setConnected(true);
+                //syncInitialState();
+            })
+            .catch(error => {
+                console.log('Something went wrong. ' + error);
+                logEvent(`❌ Connection failed: ${error.message}`);
+                updateBLEStatus(`Connection failed: ${error.message}`, '#d13a30');
+            });
+        } // connectToDevice
+
+        // Sync initial state after BLE connection
+        /*
+        async function syncInitialState() {
+            console.log('Querying device state...');
+            logEvent('Syncing initial state from device...');
+            
+            // Add small delay to ensure characteristic listeners are fully established
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Send device state query to ESP32
+            await sendButtonCharacteristic(92); // Device state query
+            
+            // Device will respond via string characteristic with complete state
+            // This will trigger applyReceivedString() which will update UI components
+        }*/
+
+        function onDisconnected(event) {
+            const deviceName = event && event.target && event.target.device ? event.target.device.name : 'Unknown Device';
+            console.log('Device Disconnected:', deviceName);
+            logEvent(`Device Disconnected: ${deviceName}`);
+            updateBLEStatus('Device disconnected', '#d13a30');
+            deviceConnected = false;
+            
+            // Update BLE state
+            window.BLEState.setConnected(false);
+            
+            /*
+            setTimeout(() => {
+                connectToDevice();
+            }, 2000);
+            */
+        }
+
+        function disconnectDevice() {
+            console.log("Disconnect Device.");
+            if (bleServer && bleServer.connected) {
+                bleServer.disconnect();
+            }
+            console.log("Device Disconnected");
+            logEvent("Device Disconnected");
+            updateBLEStatus('Disconnected', '#d13a30');
+            deviceConnected = false;
+            
+            // Update BLE state
+            window.BLEState.setConnected(false);
+        }
+               
+        // BLE State Management ************************************
+        window.BLEState = {
+            connected: false,
+            
+            setConnected(connected) {
+                console.log(`BLEState: ${connected}`);
+                this.connected = connected;
+                //is this duplicative of anything else that updates components upon connection? 
+                this.notifyComponents();
+            },
+            
+            notifyComponents() {
+                console.log('BLEState: Notifying components of state change');
+                // Only update connection-dependent UI (show/hide based on connection)
+                const components = document.querySelectorAll('program-selector, mode-selector, parameter-settings');
+                components.forEach(component => {
+                    if (typeof component.updateConnectionState === 'function') {
+                        component.updateConnectionState();
+                    }
+                });
+            }
+        };
+
+        // Update the global BLE status display
+        window.updateBLEStatus = function(status, color) {
+            console.log('updateBLEStatus called:', status, color);
+            
+            const connectionPanel = document.querySelector('ble-connection-panel');
+            if (connectionPanel && typeof connectionPanel.updateStatus === 'function') {
+                try {
+                    connectionPanel.updateStatus(status, color);
+                    console.log('✅ Connection panel status updated');
+                } catch (error) {
+                    console.error('❌ Error updating connection panel:', error);
+                }
+            } else {
+                console.log('⚠️ Connection panel not found or not ready yet');
+            }
+        };
+
+        logEvent('Page loaded');
+
+
+        // Handle characteristic change events *****************************
+        
+        function handleButtonCharacteristicChange(event) {
+            const changeReceived = new TextDecoder().decode(event.target.value);
+            console.log("Button receipt:", changeReceived);
+            logEvent(`Button confirmed: ${changeReceived}`);
+            applyReceivedButton(changeReceived);
+        }
+
+        function handleCheckboxCharacteristicChange(event) {
+            const changeReceived = new TextDecoder().decode(event.target.value);
+            const receivedDoc = JSON.parse(changeReceived);
+            console.log("Checkbox receipt:", receivedDoc.id, "-", receivedDoc.val);
+            logEvent(`Checkbox confirmed: ${receivedDoc.id} = ${receivedDoc.val}`);
+        }
+
+        /*
+        function handleNumberCharacteristicChange(event) {
+            const changeReceived = new TextDecoder().decode(event.target.value);
+            const receivedDoc = JSON.parse(changeReceived);
+            console.log("Number receipt:", receivedDoc.id, "-", receivedDoc.val);
+            logEvent(`Number confirmed: ${receivedDoc.id} = ${receivedDoc.val}`);
+            applyReceivedNumber(receivedDoc);
+        }
+        */
+
+        function handleStringCharacteristicChange(event) {
+            const changeReceived = new TextDecoder().decode(event.target.value);
+            const receivedDoc = JSON.parse(changeReceived);
+            console.log("String receipt:", receivedDoc.id, "-", receivedDoc.val);
+            logEvent(`String confirmed: ${receivedDoc.id} = ${receivedDoc.val}`);
+            applyReceivedString(receivedDoc);
+        }
+
+
+        // Characteristic Send Functions *************************************
+        
+        window.sendButtonCharacteristic = function(buttonValue) {
+            if (!deviceConnected || !buttonCharacteristicFound) {
+                console.error("Bluetooth is not connected. Cannot write to button characteristic.");
+                logEvent("⚠️ Bluetooth is not connected. Cannot write to button characteristic.");
+                return;
+            }
+
+            const data = new Uint8Array([buttonValue]);
+            
+            buttonCharacteristicFound.writeValue(data)
+                .then(() => {
+                    lastValueSent = buttonValue.toString();
+                    document.getElementById('lastMessage').textContent = `Button: ${buttonValue}`;
+                    console.log("✅ Button value written:", buttonValue);
+                    logEvent(`✅ Sent button: ${buttonValue}`);
+                })
+                .catch(error => {
+                    console.error("Error writing to button characteristic:", error);
+                    logEvent(`❌ Button send failed: ${error.message}`);
+                });
+        };
+
+
+        window.sendCheckboxCharacteristic = function(checkboxId, value) {
+            if (!deviceConnected || !checkboxCharacteristicFound) {
+                console.error("Bluetooth is not connected. Cannot write to checkbox characteristic.");
+                logEvent("⚠️ Bluetooth is not connected. Cannot write to checkbox characteristic.");
+                return;
+            }
+
+            var sendDoc = {
+                "id": checkboxId,
+                "val": value
+            };
+            var sendString = JSON.stringify(sendDoc);
+            var sendBuffer = str2ab(sendString);
+
+            checkboxCharacteristicFound.writeValue(sendBuffer)
+                .then(() => {
+                    lastValueSent = sendString;
+                    document.getElementById('lastMessage').textContent = sendString;
+                    console.log("✅ Checkbox value written:", sendString);
+                    logEvent(`✅ Sent checkbox: ${sendString}`);
+                })
+                .catch(error => {
+                    console.error("Error writing to checkbox characteristic:", error);
+                    logEvent(`❌ Checkbox send failed: ${error.message}`);
+                });
+        };
+
+
+        /*
+        window.sendNumberCharacteristic = function(inputID, inputValue) {
+            if (!deviceConnected || !numberCharacteristicFound) {
+                console.error("Bluetooth is not connected. Cannot write to number characteristic.");
+                logEvent("⚠️ Bluetooth is not connected. Cannot write to number characteristic.");
+                return;
+            }
+
+            var sendDoc = {
+                "id": inputID,
+                "val": inputValue
+            };
+            var sendString = JSON.stringify(sendDoc);
+            var sendBuffer = str2ab(sendString);
+
+            numberCharacteristicFound.writeValue(sendBuffer)
+                .then(() => {
+                    lastValueSent = sendString;
+                    document.getElementById('lastMessage').textContent = sendString;
+                    console.log("✅ Number value written:", sendString);
+                    logEvent(`✅ Sent number: ${sendString}`);
+                })
+                .catch(error => {
+                    console.error("Error writing to number characteristic:", error);
+                    logEvent(`❌ Number send failed: ${error.message}`);
+                });
+        };
+    */
+
+
+        window.sendStringCharacteristic = function(inputID, inputValue) {
+            if (!deviceConnected || !stringCharacteristicFound) {
+                console.error("Bluetooth is not connected. Cannot write to string characteristic.");
+                logEvent("⚠️ Bluetooth is not connected. Cannot write to string characteristic.");
+                return;
+            }
+
+            var sendDoc = {
+                "id": inputID,
+                "val": inputValue
+            };
+            var sendString = JSON.stringify(sendDoc);
+            var sendBuffer = str2ab(sendString);
+
+            stringCharacteristicFound.writeValue(sendBuffer)
+                .then(() => {
+                    lastValueSent = sendString;
+                    document.getElementById('lastMessage').textContent = sendString;
+                    console.log("✅ String value written:", sendString);
+                    logEvent(`✅ Sent string: ${sendString}`);
+                })
+                .catch(error => {
+                    console.error("Error writing to string characteristic:", error);
+                    logEvent(`❌ String send failed: ${error.message}`);
+                });
+        };
+
+        // ******************************************************************************************************
+        // *************************************************************************************
+        // FUNCTIONS TO APPLY NOTIFICATIONS FROM PROGRAM ***************************************
+
+        function applyReceivedButton(changeReceived){
+        
+            // Sync program
+            if ( changeReceived < 20 ) {
+                const programSelector = document.querySelector('program-selector');
+                if (programSelector) {
+                    programSelector.updateDisplayProgram(changeReceived) ;
+                }
+                                
+                // Update ModeSelector modes based on new program
+                const modeSelector = document.querySelector('mode-selector');
+                if (modeSelector) {
+                    modeSelector.updateModes();
+                    // also need to get current mode and update mode display; or shoud/does updateModes do this?
+                }
+
+                // Update ParameterSettings based on new program
+                const parameterSettings = document.querySelector('parameter-settings');
+                if (parameterSettings) {
+                    parameterSettings.updateParameters();
+                }
+            }
+
+            // Sync mode
+            if ( changeReceived >= 20 && changeReceived < 40 ) {
+                const modeValue = changeReceived - 20;
+                const modeSelector = document.querySelector('mode-selector');
+                if (modeSelector) {
+                    modeSelector.updateDisplayMode(modeValue);
+                }
+
+                // Update ParameterSettings based on new mode
+                const parameterSettings = document.querySelector('parameter-settings');
+                if (parameterSettings) {
+                    parameterSettings.updateParameters();
+                }
+            }
+
+        }
+    
+        //function applyReceivedCheckbox(receivedDoc) {}
+        
+        // Debounce timer for ParameterSettings re-render
+        /*
+        let parameterUpdateTimeout = null;
+        
+        function applyReceivedNumber(receivedDoc) {
+        
+            const parameterID = receivedDoc.id;
+            const parameterVal = receivedDoc.val;
+            
+            console.log(`applyReceivedNumber called with ID: "${parameterID}", value: ${parameterVal}`);
+
+            // Try to find a standalone control-slider element first
+            const controlSlider = document.querySelector(`control-slider[parameter-id="${parameterID}"]`);
+            
+            if (controlSlider) {
+                controlSlider.updateValue(parameterVal);
+                console.log(`✅ Updated control-slider ${parameterID} to value ${parameterVal}`);
+                return;
+            }
+
+            // For ParameterSettings, try to update the slider directly
+            const parameterSettings = document.querySelector('parameter-settings');
+            if (parameterSettings) {
+                // Use the existing updateParameterValues method
+                parameterSettings.updateParameterValues(parameterID, parameterVal);
+                console.log(`✅ Updated ParameterSettings slider ${parameterID} to value ${parameterVal}`);
+            } else {
+                console.warn(`❌ No ParameterSettings component found`);
+            }
+        
+        }
+        */
+
+        function applyReceivedString(receivedDoc) {
+            const receivedID = receivedDoc.id;
+            const receivedValue = receivedDoc.val;
+            
+            /*if (receivedID === "deviceState") {
+                console.log("Received device state:", receivedValue);
+                logEvent("Device state received");
+                
+                try {
+                    const state = JSON.parse(receivedValue);
+                    
+                    // 1. Update program/mode selectors by piggybacking on applyReceivedButton
+                    applyReceivedButton(state.program);  // Program
+                    if (state.mode !== undefined) {
+                        applyReceivedButton(state.mode + 20);  // Mode (mode + 20)
+                    }
+                    
+                    // 2. Update parameter values by piggybacking on applyReceivedNumber
+                    if (state.parameters) {
+                        Object.entries(state.parameters).forEach(([paramName, paramValue]) => {
+                            const paramDoc = {
+                                id: "in" + paramName.charAt(0).toUpperCase() + paramName.slice(1),
+                                val: paramValue
+                            };
+                            applyReceivedNumber(paramDoc);
+                        });
+                    }
+                    
+                    console.log("Device state sync complete");
+                    logEvent("Device state sync complete");
+                    
+                } catch (error) {
+                    console.error("Error parsing device state:", error);
+                    logEvent("Error parsing device state: " + error.message);
+                }
+            }*/
+        }
+
+
+        //*****************************************************************************************************
+        // WEB COMPONENTS *************************************************************************************
+
+        // BLE CONNECTION PANEL *****************************************
+    
+        class BLEConnectionPanel extends HTMLElement {
+            constructor() {
+                super();
+                this.deviceName = this.getAttribute('device-name') || 'Aurora Portal';
+            }
+
+            connectedCallback() {
+                this.render();
+                this.attachEventListeners();
+                logEvent('BLE Connection Panel initialized');
+            }
+
+            render() {  
+                this.innerHTML = `
+                    <div style="
+                        background-color: rgb(36, 36, 36);
+                        padding: 15px;
+                        border-radius: 4px;
+                        text-align: center;
+                        border: 1px solid #696969;
+                    ">
+                        <button class="connect-btn" style="
+                            background-color: #7f7f7f;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            padding: 8px 16px;
+                            margin: 0 5px;
+                            cursor: pointer;
+                        ">Connect</button>
+                        
+                        <button class="disconnect-btn" style="
+                            background-color: #2e2e2e;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            padding: 8px 16px;
+                            margin: 0 5px;
+                            cursor: pointer;
+                        ">Disconnect</button>
+                        
+                        <div style="margin-top: 10px; color: white;">
+                            Status: <span class="ble-status" style="color: #d13a30; ">Disconnected</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            attachEventListeners() {
+                const connectBtn = this.querySelector('.connect-btn');
+                const disconnectBtn = this.querySelector('.disconnect-btn');
+
+                connectBtn.addEventListener('click', () => {
+                    connectToDevice();
+                });
+
+                disconnectBtn.addEventListener('click', () => {
+                    disconnectDevice();
+                });
+            }
+
+            updateStatus(status, color) {
+                console.log('BLE Panel updateStatus called:', status, color);
+                
+                const statusElement = this.querySelector('.ble-status');
+                if (statusElement) {
+                    statusElement.textContent = status;
+                    statusElement.style.color = color;
+                    console.log('✅ BLE status updated successfully');
+                } else {
+                    console.error('❌ BLE status element not found in component');
+                }
+            }
+        } // BLEConnectionPanel
+
+        // GENERAL CONTROL COMPONENTS **********************************************************************************
+
+        // Control Button **************************
+
+		class ControlButton extends HTMLElement {
+            constructor() {
+                super();
+                // Get attributes
+                this.label = this.getAttribute('label') ;
+                this.buttonNumber = this.getAttribute('data-my-number');
+            }
+
+            connectedCallback() {
+                this.render();
+                this.attachEventListeners();
+                logEvent(`Control Button '${this.label}' initialized`);
+            }
+			
+			render() {
+                this.innerHTML = `
+					<button class="con-button" style="
+						background-color: #7f7f7f;
+						color: white;
+						border: none;
+						border-radius: 4px;
+						padding: 5px;
+                        margin: 10px;
+						cursor: pointer;
+					">${this.label}</button>
+				`;
+			}
+				
+			attachEventListeners() {
+                const buttons = this.querySelectorAll('.con-button');
+                buttons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const buttonVal = parseInt(this.buttonNumber);
+                        logEvent(`Button pressed: ${this.label} (button ${buttonVal})`);
+                        this.processButton(buttonVal);
+                    });
+                });
+            }
+
+            processButton(buttonVal){
+
+                if (buttonVal > 20) { sendButtonCharacteristic(buttonVal); }
+
+                //if (buttonVal == 91) { }  // update parametersUsed when refreshing UI 
+
+            }
+        } // ControlButton
+
+    // Control Checkbox ***********************************
+
+		class ControlCheckbox extends HTMLElement {
+            constructor() {
+                super();
+                // Get attributes
+                this.label = this.getAttribute('label') ;
+                this.checkboxNum = this.getAttribute('data-my-number');
+				this.isChecked = this.getAttribute('checked')
+            }
+
+            connectedCallback() {
+                this.render();
+                this.attachEventListeners();
+                logEvent(`Control Checkbox '${this.label}' initialized`);
+            }
+			
+			render() {
+                let isChecked = false;
+                if (this.hasAttribute('unchecked')) {
+                    isChecked = false;
+                } else if (this.hasAttribute('checked')) {
+                    isChecked = this.getAttribute('checked') !== 'false';
+                } else {
+                    isChecked = false; // default to unchecked
+                }
+                
+                this.innerHTML = `
+				  ${this.label}: <input type="checkbox" class="control-checkbox" data-my-number="${this.checkboxNum}" 
+				   ${isChecked ? 'checked' : ''}
+				   style="transform: scale(1.2);">
+                `
+			}
+				
+            attachEventListeners() {
+                const checkboxes = this.querySelectorAll('.control-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        const checkboxId = e.target.getAttribute('data-my-number');
+                        const isChecked = e.target.checked;
+                        this.checkboxes = isChecked;
+                        
+                        // Send checkbox characteristic
+                        const checkboxRef = `cx${checkboxId}`;
+                        window.sendCheckboxCharacteristic(checkboxRef, isChecked);
+                        logEvent(`Checkbox ${checkboxId} ${isChecked ? 'enabled' : 'disabled'} (${checkboxId})`);
+                    });
+                });
+            }
+          	
+        } // ControlCheckbox
+
+        //**********************************************************************************************************
+
+        // Register all custom elements
+        customElements.define('ble-connection-panel', BLEConnectionPanel);
+        customElements.define('control-button', ControlButton);
+        customElements.define('control-checkbox', ControlCheckbox);
+        //customElements.define('control-slider', ControlSlider);
+        //customElements.define('control-dropdown', ControlDropdown);
+        //customElements.define('program-selector', ProgramSelector);
+        //customElements.define('mode-selector', ModeSelector);
+        //customElements.define('parameter-settings', ParameterSettings);
+        //customElements.define('layer-selector', LayerSelector);
+        //customElements.define('preset-controls', Presets);
+
+        // Wait for all components to be ready
+        function waitForComponents() {
+            const requiredComponents = [
+                'ble-connection-panel',
+                'control-button',
+                'control-checkbox'
+                //'control-slider',
+                //'control-dropdown',
+                //'program-selector',
+                //'mode-selector',
+                //'parameter-settings',
+                //'layer-selector',
+                //'preset-controls'
+            ];
+            
+            const allReady = requiredComponents.every(tag => {
+                const element = document.querySelector(tag);
+                return element && element.isConnected;
+            });
+            
+            if (allReady) {
+                console.log('✅ All Web Components are ready');
+                logEvent('✅ All Web Components loaded and ready');
+               } else {
+                console.log('⚠️ Waiting for Web Components to initialize...');
+                setTimeout(waitForComponents, 100);
+            }
+        }
+        
+        // Start component readiness check
+        setTimeout(waitForComponents, 100);
+
+
+        // UTILITY FUNCTIONS **************************************************************
+
+        function str2ab(str) {
+            var buf = new ArrayBuffer(str.length*2);
+            var bufView = new Uint8Array(buf);
+            for (var i=0, strLen=str.length; i < strLen; i++) {
+                bufView[i] = str.charCodeAt(i);
+            }
+            return buf;
+        }
+
+        function logEvent(message) {
+            const log = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+    </script>
+
+</body>
+</html>

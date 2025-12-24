@@ -73,9 +73,16 @@
             grid-column-start: 2;
             grid-column-end: 3;
             grid-row-start: 1;
-            grid-row-end: 1; 
+            grid-row-end: 2; 
         }
-
+        .section.features {
+            padding: 5px;
+            text-align: center;
+            grid-column-start: 1;
+            grid-column-end: 2;
+            grid-row-start: 2;
+            grid-row-end: 3;  
+        }
     </style>
 </head>
 <!-- *********************************************************************************** -->
@@ -97,10 +104,6 @@
                     label="Off" 
                     data-my-number="10">
                 </control-button>
-                <!--<control-button 
-                    label="Sync State" 
-                    data-my-number="92">
-                </control-button> -->
             </div>
             <div class="label">Features: 
                 <control-button 
@@ -120,7 +123,6 @@
                 </control-checkbox>
             </div>
             <div>            
-            
                 <control-checkbox 
                     label="Steamer" 
                     data-my-number="50"
@@ -150,6 +152,22 @@
             </div>
         </div> 
 
+        <div class="section features" >
+            <div class="label">Steam: 
+                <control-button 
+                    label="On" 
+                    data-my-number="53">
+                </control-button>
+                <control-button 
+                    label="Off" 
+                    data-my-number="52">
+                </control-button>
+                <control-button 
+                    label="Auto" 
+                    data-my-number="54">
+                </control-button>
+            </div>
+        </div>
   
         <!-- Event Log -->  
         <div class="status section log" >

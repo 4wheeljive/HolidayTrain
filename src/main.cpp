@@ -12,10 +12,10 @@ uint8_t BRIGHTNESS = 25;
 bool powerOn = true;
 //bool signalOn = true;
 bool trackOn = true;
-bool steamerOn = true;
-bool stockCarOn = true;
-bool lightCarOn = true;
-bool cabooseOn = true;
+//bool steamerOn = true;
+//bool stockCarOn = true;
+//bool lightCarOn = true;
+//bool cabooseOn = true;
 
 #include "bleControl.h"
 #include "espnowControl.h"

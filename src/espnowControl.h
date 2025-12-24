@@ -3,15 +3,22 @@
 #include "FastLED.h"
 #include <ArduinoJson.h>
 
-// f0:9e:9e:b2:88:48
+// d8:3b:da:75:b8:bc  Main       
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <esp_now.h>
 
 // REPLACE WITH YOUR ESP RECEIVER'S MAC ADDRESS
-uint8_t broadcastAddress1[] = {0x98,0xa3,0x16,0x85,0x7d,0xac}; // 98:a3:16:85:7d:ac Steamer
-//uint8_t broadcastAddress2[] = {0xFF, , , , , };
-//uint8_t broadcastAddress3[] = {0xFF, , , , , };
+uint8_t broadcastAddress1[] = {0x98,0xa3,0x16,0x85,0x26,0x80}; //   98:a3:16:85:26:80   Steamer
+uint8_t broadcastAddress2[] = {0x94,0xa9,0x90,0x78,0x88,0x80}; //   94:a9:90:78:88:80   Stock Car   
+uint8_t broadcastAddress3[] = {0xb4,0x3a,0x45,0x89,0xe4,0x48}; //   b4:3a:45:89:e4:48   Light Car 
+
+// Main        d8:3b:da:75:b8:bc    Pink
+// Steamer     98:a3:16:85:26:80    Orange
+// Light Car   b4:3a:45:89:e4:48    Purple
+// Stock Car   94:a9:90:78:88:80    Teal    
+
+// ================================================================================================
 
 typedef struct message_struct {
   int x;
@@ -58,7 +65,6 @@ void espnowSetup() {
         return;
     }
 
-    /*
     // register second peer  
     memcpy(peerInfo.peer_addr, broadcastAddress2, 6);
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
@@ -72,7 +78,6 @@ void espnowSetup() {
         Serial.println("Failed to add peer");
         return;
     }
-    */
 }
 
 // =========================================================================
@@ -89,6 +94,7 @@ void sendESPNOW(uint8_t commandNumber) {
     else {
         Serial.println("Error sending the data");
     }
+    
 }
 
 

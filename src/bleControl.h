@@ -22,10 +22,12 @@ uint8_t dummy = 1;
 extern bool powerOn;
 //extern bool signalOn;
 extern bool trackOn;
-extern bool steamerOn;
-extern bool stockCarOn;
-extern bool lightCarOn;
-extern bool cabooseOn;
+bool steamerOn;
+bool steamOn;
+bool steamAuto;
+bool stockCarOn;
+bool lightCarOn;
+bool cabooseOn;
 
 using namespace fl;
 
@@ -146,14 +148,24 @@ void processButton(uint8_t receivedValue) {
     if (receivedValue == 11) {powerOn = true;}
     if (receivedValue == 12) {trackOn=false; steamerOn=false; stockCarOn=false; lightCarOn=false; cabooseOn=false; }
     if (receivedValue == 13) {trackOn=true; steamerOn=true; stockCarOn=true; lightCarOn=true; cabooseOn=true; }
+    if (receivedValue == 52) {steamerOn=false; steamOn=false; steamAuto=false;}
+    if (receivedValue == 53) {steamOn=true; steamAuto=false;}
+    if (receivedValue == 54) {steamOn=true; steamAuto=true;}
 }
 
 void processCheckbox(String receivedID, bool receivedValue ) {
     sendReceiptCheckbox(receivedID, receivedValue);
-    if (receivedID == "cx40") {trackOn=receivedValue;}
+    if (receivedID == "cx40") {
+        trackOn=receivedValue;
+    }
     if (receivedID == "cx50") {
         steamerOn=receivedValue;
         receivedValue == true ? sendVal = 51 : sendVal = 50;
+        sendESPNOW(sendVal);    
+    }
+    if (receivedID == "cx52") {
+        steamOn=receivedValue;
+        receivedValue == true ? sendVal = 53 : sendVal = 52;
         sendESPNOW(sendVal);    
     }
     if (receivedID == "cx60") {

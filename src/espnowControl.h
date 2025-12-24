@@ -13,12 +13,11 @@ uint8_t broadcastAddress1[] = {0x98,0xa3,0x16,0x85,0x7d,0xac}; // 98:a3:16:85:7d
 //uint8_t broadcastAddress2[] = {0xFF, , , , , };
 //uint8_t broadcastAddress3[] = {0xFF, , , , , };
 
-typedef struct test_struct {
+typedef struct message_struct {
   int x;
-  int y;
-} test_struct;
+} message_struct;
 
-test_struct test;
+message_struct message;
 
 esp_now_peer_info_t peerInfo;
 
@@ -33,6 +32,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print(" send status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
+
+uint8_t commandNumber;
 
 // =========================================================================
 
@@ -74,12 +75,13 @@ void espnowSetup() {
     */
 }
 
-void sendESPNOW() {
+// =========================================================================
 
-    test.x = random(0,20);
-    test.y = random(0,20);
+void sendESPNOW(uint8_t commandNumber) {
 
-    esp_err_t result = esp_now_send(0, (uint8_t *) &test, sizeof(test_struct));
+    message.x = commandNumber;
+
+    esp_err_t result = esp_now_send(0, (uint8_t *) &message, sizeof(message_struct));
 
     if (result == ESP_OK) {
         Serial.println("Sent with success");
@@ -87,4 +89,6 @@ void sendESPNOW() {
     else {
         Serial.println("Error sending the data");
     }
-} 
+}
+
+

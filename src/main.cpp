@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
-#define DATA_PIN_1 2 // D3
+#define DATA_PIN_1 D3
 //#define SIGNAL_PIN D4
 #define POWER_PIN D10
 #define NUM_LEDS_TRACK 226
@@ -24,16 +24,17 @@ bool cabooseOn = true;
 // ***************************************************************************************
 
 void setup() {
-    
+
+  Serial.begin(115200);
+  delay(1000);
+
   //pinMode(SIGNAL_PIN, OUTPUT);
   pinMode(POWER_PIN, OUTPUT);
+
   FastLED.addLeds<WS2812B, DATA_PIN_1, GRB>(leds_track, NUM_LEDS_TRACK);
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.clear();
   FastLED.show();
-
-  Serial.begin(115200);
-  delay(1000);
   
   bleSetup();
   espnowSetup();
@@ -55,6 +56,16 @@ void loop() {
 		wasConnected = false;
 	}
 
+  /*
+  digitalWrite(POWER_PIN,HIGH);
+  Serial.println("High...");
+  delay(3000);
+  digitalWrite(POWER_PIN,LOW);
+  Serial.println("Low...");
+  delay(3000);
+  */
+
+
   // System Power Control -----------------------------
   powerOn? digitalWrite(POWER_PIN, LOW) : digitalWrite(POWER_PIN, HIGH);
   
@@ -62,8 +73,6 @@ void loop() {
   if (powerOn) {
   
     // Sub Module Control ------------------------------- 
-
-
 
     // Direct feature control --------------------------
 
@@ -93,6 +102,4 @@ void loop() {
         signalOn ? digitalWrite(SIGNAL_PIN, HIGH) : digitalWrite(SIGNAL_PIN, LOW);
         */ 
   } // if powerOn  
-
-
-}
+} // loop

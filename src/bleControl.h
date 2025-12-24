@@ -2,6 +2,7 @@
 
 #include "FastLED.h"
 #include <ArduinoJson.h>
+#include "espnowControl.h"
 
 /* If you use more than ~4 characteristics, you need to increase numHandles in this file:
 C:\Users\...\.platformio\packages\framework-arduinoespressif32\libraries\BLE\src\BLEServer.h
@@ -30,6 +31,9 @@ using namespace fl;
 
 ArduinoJson::JsonDocument sendDoc;
 ArduinoJson::JsonDocument receivedJSON;
+
+uint8_t sendVal;
+extern void sendESPNOW(uint8_t commandNumber);
 
 //*******************************************************************************
 //BLE CONFIGURATION *************************************************************
@@ -147,10 +151,26 @@ void processButton(uint8_t receivedValue) {
 void processCheckbox(String receivedID, bool receivedValue ) {
     sendReceiptCheckbox(receivedID, receivedValue);
     if (receivedID == "cx40") {trackOn=receivedValue;}
-    if (receivedID == "cx50") {steamerOn=receivedValue;}
-    if (receivedID == "cx60") {stockCarOn=receivedValue;}
-    if (receivedID == "cx70") {lightCarOn=receivedValue;}
-    if (receivedID == "cx90") {cabooseOn=receivedValue;}
+    if (receivedID == "cx50") {
+        steamerOn=receivedValue;
+        receivedValue == true ? sendVal = 51 : sendVal = 50;
+        sendESPNOW(sendVal);    
+    }
+    if (receivedID == "cx60") {
+        stockCarOn=receivedValue;
+        receivedValue == true ? sendVal = 61 : sendVal = 60;
+        sendESPNOW(sendVal);    
+    }
+    if (receivedID == "cx70") {
+        lightCarOn=receivedValue;
+        receivedValue == true ? sendVal = 71 : sendVal = 70;
+        sendESPNOW(sendVal);    
+    }
+    if (receivedID == "cx90") {
+        cabooseOn=receivedValue;
+        receivedValue == true ? sendVal = 71 : sendVal = 70;
+        sendESPNOW(sendVal);    
+    }
 }
 
 void processString(String receivedID, String receivedValue ) {
